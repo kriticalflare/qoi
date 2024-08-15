@@ -3,6 +3,10 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"io"
 	"log"
 	"os"
 )
@@ -431,6 +435,83 @@ func testEncode(state *State) {
 }
 
 func main() {
-	state := testDecode()
-	testEncode(state)
+	// state := testDecode()
+	// testEncode(state)
+
+	file, err := os.Open("./testimages/wikipedia_008.qoi")
+	if err != nil {
+		log.Fatalf("Failed to open file: %v", err)
+	}
+	defer file.Close()
+	img, err := ImageDecode(file)
+	if err != nil {
+		log.Fatalf("error with image decode: %v", err)
+	}
+	fmt.Printf("img %v, \n", img)
+	fmt.Printf("bounds %v", img.Bounds())
+
+	file, err = os.Create("./output/image.qoi")
+	if err != nil {
+		log.Fatalf("failed to open write file: %v", err)
+	}
+
+	ImageEncode(file, img)
+}
+
+func imageToNRGBA(src image.Image)  *image.NRGBA {
+	dst := image.NewNRGBA(src.Bounds())
+	draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Src)
+	return dst
+}
+
+func NRGBAImageToQoi(m *image.NRGBA) ([]byte, error) {
+	return Encode(m.Pix, uint32(m.Bounds().Max.Y), uint32(m.Bounds().Max.X), 4, 0)
+} 
+
+func ImageEncode(w io.Writer, m image.Image) error {
+	switch src := m.(type) {
+	case *image.NRGBA:
+		{
+			data, err := NRGBAImageToQoi(src)
+			if err != nil {
+				return err
+			}
+			w.Write(data)
+		}
+	default:
+		{
+			nrgbaImage:= imageToNRGBA(m)
+			data, err := NRGBAImageToQoi(nrgbaImage)
+			if err != nil {
+				return err
+			}
+			w.Write(data)
+		}
+	}
+	return nil
+}
+
+func ImageDecode(r io.Reader) (image.Image, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("n: %v\n", len(data))
+	state, err := Decode(data)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Header: %v", state.Header)
+
+	img := image.NewNRGBA(image.Rect(0, 0, int(state.Width), int(state.Height)))
+	for idx, pixel := range state.Raw {
+		// fmt.Printf("idx %v | x: %v | y: %v \n", idx, idx % int(state.Width), idx / int(state.Width))
+		img.Set(idx%int(state.Width), idx/int(state.Width), color.NRGBA{
+			R: pixel.R,
+			G: pixel.G,
+			B: pixel.B,
+			A: pixel.A,
+		})
+	}
+	return img, nil
 }
