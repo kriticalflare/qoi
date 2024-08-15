@@ -22,7 +22,7 @@ func TestImageEncoding(t *testing.T) {
 			t.Fatalf("failed to open png file '%v' due to %v\n", pngFile, err)
 		}
 		pngImg, format, err := image.Decode(file)
-		
+
 		if err != nil {
 			t.Fatalf("failed to decode png file '%v' due to '%v'\n", pngFile, err)
 		}
@@ -47,9 +47,9 @@ func TestImageEncoding(t *testing.T) {
 
 		for idx, currByte := range buffer.Bytes() {
 			if currByte != qoiFile[idx] {
-				t.Logf("got=%08b\nwant=%08b\n", buffer.Bytes()[0: idx+1], qoiFile[0: idx+1])
-				t.Fatalf("failed to encode qoi file from pngFile %v correctly got=%08b want=%08b at index %v", pngFile, currByte , qoiFile[idx], idx)
+				t.Logf("got=%08b\nwant=%08b\n", buffer.Bytes()[0:idx+1], qoiFile[0:idx+1])
+				t.Fatalf("failed to encode qoi file from pngFile %v correctly got=%08b want=%08b at index %v", pngFile, currByte, qoiFile[idx], idx)
 			}
-		}		
+		}
 	}
 }

@@ -6,14 +6,12 @@ import (
 	"image"
 	"image/draw"
 	"io"
-	"log"
-	"os"
+	"slices"
 )
 
 func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace uint8) ([]byte, error) {
 	expectedPixelsCount := height * width
 
-	// might need channel handling
 	if len(rgba) != int(expectedPixelsCount)*4 {
 		return nil, fmt.Errorf("insufficient rgba data for the expected height and width, h: %d w: %d r: %d required: %d", height, width, len(rgba), int(expectedPixelsCount)*int(channels))
 	}
@@ -63,7 +61,6 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 			s.historyBuffer[currPixel.Hash()] = currPixel
 			buffer = append(buffer, count|0b11000000)
 			pixelsWritten += (uint32(count) + 1)
-			// fmt.Printf("Writing a QOI_OP_RUN Chunk %08b\n", buffer[len(buffer)-1])
 			continue
 		} else {
 			if s.historyBuffer[currPixel.Hash()].Equals(currPixel) {
@@ -73,7 +70,6 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 					var count uint8 = 0 // bias of 1
 					rIdx := idx + 4
 					for pixelsWritten < expectedPixelsCount && rIdx < len(rgba) && count < 61 {
-						// TODO handle images with no alpha channel?
 						// fmt.Printf("prev idx -> checking runlength rIdx: %d idx: %d count: %d\n", rIdx, idx, count)
 						runPixel := pixel{
 							R: rgba[rIdx],
@@ -94,7 +90,6 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 					s.historyBuffer[currPixel.Hash()] = currPixel
 					buffer = append(buffer, count|0b11000000)
 					pixelsWritten += (uint32(count) + 1)
-					// fmt.Printf("Writing a QOI_OP_RUN Chunk %08b\n", buffer[len(buffer)-1])
 					continue
 				} else {
 					// QOI_OP_INDEX
@@ -104,7 +99,6 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 					s.historyBuffer[currPixel.Hash()] = currPixel
 					buffer = append(buffer, currPixel.Hash())
 					pixelsWritten += 1
-					// fmt.Printf("Writing a QOI_OP_INDEX Chunk %08b\n", buffer[len(buffer)-1])
 					continue
 				}
 			}
@@ -123,7 +117,6 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 					s.historyBuffer[currPixel.Hash()] = currPixel
 					buffer = append(buffer, 0b01000000|rDiff<<4|gDiff<<2|bDiff)
 					pixelsWritten += 1
-					// fmt.Printf("Writing a QOI_OP_DIFF Chunk %08b\n", buffer[len(buffer)-1])
 					continue
 				}
 
@@ -145,7 +138,6 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 					buffer = append(buffer, 0b10000000|dg)
 					buffer = append(buffer, dr_dg<<4|db_dg)
 					pixelsWritten += 1
-					// fmt.Printf("Writing a QOI_OP_LUMA Chunk %08b\n", buffer[len(buffer)-1])
 					continue
 				}
 
@@ -159,7 +151,6 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 				buffer = append(buffer, currPixel.G)
 				buffer = append(buffer, currPixel.B)
 				pixelsWritten += 1
-				// fmt.Printf("Writing a QOI_OP_RGB Chunk %08b %08b %08b %08b\n", buffer[len(buffer)-4], buffer[len(buffer)-3], buffer[len(buffer)-2], buffer[len(buffer)-1])
 				continue
 
 			} else {
@@ -174,15 +165,12 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 				buffer = append(buffer, currPixel.B)
 				buffer = append(buffer, currPixel.A)
 				pixelsWritten += 1
-				// fmt.Printf("Writing a QOI_OP_RGBA Chunk %08b %08b %08b %08b %08b\n", buffer[len(buffer)-5], buffer[len(buffer)-4], buffer[len(buffer)-3], buffer[len(buffer)-2], buffer[len(buffer)-1])
 				continue
 			}
 		}
 	}
 
-	// end marker
-	buffer = append(buffer, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01)
-	return buffer, nil
+	return slices.Concat(buffer, END_MARKER), nil
 }
 
 func imageToNRGBA(src image.Image) *image.NRGBA {
@@ -199,7 +187,10 @@ func ImageEncode(w io.Writer, m image.Image) error {
 			if err != nil {
 				return err
 			}
-			w.Write(data)
+			_, err = w.Write(data)
+			if err != nil {
+				return err
+			}
 		}
 	default:
 		{
@@ -208,29 +199,11 @@ func ImageEncode(w io.Writer, m image.Image) error {
 			if err != nil {
 				return err
 			}
-			w.Write(data)
+			_, err = w.Write(data)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
-}
-
-func testEncode(state *State) {
-	file, err := os.ReadFile("./output/output.bin")
-	// file, err := os.ReadFile("./testimages/edgecase.png")
-	// file, err := os.ReadFile("./testimages/testcard_rgba.png")
-
-	if err != nil {
-		log.Fatalf("failed to read file %v", err)
-	}
-
-	qoiBuffer, err := Encode(file, state.Height, state.Width, state.Channels, state.Colorspace)
-	if err != nil {
-		log.Fatalf("Failed to encode QOI from raw: %v", err)
-	}
-	// fmt.Printf("%v\n", qoiBuffer)
-
-	err = os.WriteFile("./output/output.qoi", qoiBuffer, 0644)
-	if err != nil {
-		log.Fatalf("failed to write output file: %v", err)
-	}
 }

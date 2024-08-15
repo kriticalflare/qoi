@@ -25,7 +25,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error with image decode: %v", err)
 	}
-	// fmt.Printf("img %v, \n", img)
+
 	fmt.Printf("bounds %v", img.Bounds())
 
 	file, err = os.Create("./output/image.qoi")

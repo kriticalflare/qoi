@@ -38,7 +38,7 @@ func TestImageDecoding(t *testing.T) {
 		qoiImg, format, err := image.Decode(qoiFile)
 
 		if err != nil {
-			t.Fatalf("failed to decode qoi file '%v' due to '%v'\n", qoiFile, err)
+			t.Fatalf("failed to decode qoi file '%v' due to error: %v\n", qoiFile, err)
 		}
 		if format != "qoi" {
 			t.Fatalf("invalid image format, got=%v, want=%v\n", format, "qoi")
