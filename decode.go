@@ -56,7 +56,7 @@ func (p pixel) Equals(other pixel) bool {
 type chunkType int
 
 const (
-	UNKNOWN chunkType = iota
+	unknown chunkType = iota
 	qoi_op_rgb
 	qoi_op_rgba
 	qoi_op_index
@@ -77,7 +77,7 @@ func newState() state {
 	state := state{}
 
 	state.previousPixel = pixel{R: 0, G: 0, B: 0, A: 255}
-	state.previousType = UNKNOWN
+	state.previousType = unknown
 	return state
 }
 
