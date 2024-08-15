@@ -35,4 +35,3 @@ func main() {
 
 	qoi.ImageEncode(file, img)
 }
-

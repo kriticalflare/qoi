@@ -236,11 +236,11 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 	if err != nil {
 		return image.Config{}, err
 	}
-	
+
 	return image.Config{
-		Height: int(header.Height),
-		Width:  int(header.Width),
-		ColorModel: color.RGBAModel ,
+		Height:     int(header.Height),
+		Width:      int(header.Width),
+		ColorModel: color.RGBAModel,
 	}, nil
 }
 

@@ -181,7 +181,7 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 	}
 
 	// end marker
-	buffer = append(buffer, 0x00, 0x00, 0x00 , 0x00,0x00, 0x00 , 0x00, 0x01)
+	buffer = append(buffer, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01)
 	return buffer, nil
 }
 
@@ -191,15 +191,11 @@ func imageToNRGBA(src image.Image) *image.NRGBA {
 	return dst
 }
 
-func nrgbaImageToQOI(m *image.NRGBA) ([]byte, error) {
-	return Encode(m.Pix, uint32(m.Bounds().Max.Y), uint32(m.Bounds().Max.X), 4, 0)
-}
-
 func ImageEncode(w io.Writer, m image.Image) error {
 	switch src := m.(type) {
 	case *image.NRGBA:
 		{
-			data, err := nrgbaImageToQOI(src)
+			data, err := Encode(src.Pix, uint32(src.Bounds().Max.Y), uint32(src.Bounds().Max.X), 4, 0)
 			if err != nil {
 				return err
 			}
@@ -207,8 +203,8 @@ func ImageEncode(w io.Writer, m image.Image) error {
 		}
 	default:
 		{
-			nrgbaImage := imageToNRGBA(m)
-			data, err := nrgbaImageToQOI(nrgbaImage)
+			nrgbaImage := imageToNRGBA(src)
+			data, err := Encode(nrgbaImage.Pix, uint32(nrgbaImage.Bounds().Max.Y), uint32(nrgbaImage.Bounds().Max.X), 3, 0)
 			if err != nil {
 				return err
 			}
