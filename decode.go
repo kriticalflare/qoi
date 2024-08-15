@@ -8,7 +8,7 @@ import (
 	"io"
 )
 
-type header struct {
+type Header struct {
 	Magic      string
 	Width      uint32
 	Height     uint32
@@ -20,7 +20,7 @@ const MAGIC_BYTES string = "qoif"
 
 var END_MARKER []byte = []byte{0, 0, 0, 0, 0, 0, 0, 1}
 
-func readHeader(file []byte) (*header, error) {
+func ReadHeader(file []byte) (*Header, error) {
 	if len(file) < 14 {
 		return nil, fmt.Errorf("QOI header is 14 bytes long, got %d bytes", len(file))
 	}
@@ -35,7 +35,7 @@ func readHeader(file []byte) (*header, error) {
 	channels := uint8(file[12:13][0])
 	colorspace := uint8(file[13:14][0])
 
-	return &header{Magic: MAGIC_BYTES, Width: width, Height: height, Channels: channels, Colorspace: colorspace}, nil
+	return &Header{Magic: MAGIC_BYTES, Width: width, Height: height, Channels: channels, Colorspace: colorspace}, nil
 }
 
 type pixel struct {
@@ -65,31 +65,31 @@ const (
 	qoi_op_run
 )
 
-type State struct {
+type state struct {
 	Raw           []pixel
 	historyBuffer [64]pixel
 	previousPixel pixel
 	previousType  chunkType
-	header
+	Header
 }
 
-func NewState() State {
-	state := State{}
+func newState() state {
+	state := state{}
 
 	state.previousPixel = pixel{R: 0, G: 0, B: 0, A: 255}
 	state.previousType = UNKNOWN
 	return state
 }
 
-func Decode(buffer []byte) (*State, error) {
+func Decode(buffer []byte) (*state, error) {
 
-	header, err := readHeader(buffer)
+	header, err := ReadHeader(buffer)
 	if err != nil {
 		return nil, err
 	}
 
-	s := NewState()
-	s.header = *header
+	s := newState()
+	s.Header = *header
 	var expectedPixelsCount int = int(s.Width * s.Height)
 	s.Raw = make([]pixel, expectedPixelsCount)
 
@@ -217,7 +217,7 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 		return image.Config{}, err
 	}
 
-	header, err := readHeader(buffer)
+	header, err := ReadHeader(buffer)
 	if err != nil {
 		return image.Config{}, err
 	}

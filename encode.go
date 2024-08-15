@@ -25,7 +25,7 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 		panic(fmt.Sprintf("Header was encoded incorrectly, expect 14 bytes, found %d bytes. encoded header - %08b", len(buffer), buffer))
 	}
 
-	s := NewState()
+	s := newState()
 
 	idx := 0
 	var pixelsWritten uint32 = 0
