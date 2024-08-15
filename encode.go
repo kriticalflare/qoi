@@ -10,7 +10,6 @@ import (
 	"os"
 )
 
-
 func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace uint8) ([]byte, error) {
 	expectedPixelsCount := height * width
 
@@ -41,49 +40,6 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 			A: rgba[idx+3],
 		}
 
-		if s.historyBuffer[currPixel.Hash()].Equals(currPixel) {
-			// check if previous chunk was also a QOI_OP_INDEX hashed to same index
-			if s.previousType == qoi_op_index && s.previousPixel.Hash() == currPixel.Hash() {
-				// spec disallows 2 consecutive QOI_OP_INDEX hashed to same index
-				var count uint8 = 0 // bias of 1
-				rIdx := idx + 4
-				for pixelsWritten < expectedPixelsCount && rIdx < len(rgba) && count < 61 {
-					// TODO handle images with no alpha channel?
-					// fmt.Printf("prev idx -> checking runlength rIdx: %d idx: %d count: %d\n", rIdx, idx, count)
-					runPixel := pixel{
-						R: rgba[rIdx],
-						G: rgba[rIdx+1],
-						B: rgba[rIdx+2],
-						A: rgba[rIdx+3],
-					}
-					if currPixel.Equals(runPixel) {
-						count += 1
-						rIdx += 4
-					} else {
-						break
-					}
-				}
-				idx = rIdx
-				s.previousType = qoi_op_run
-				s.previousPixel = currPixel
-				s.historyBuffer[currPixel.Hash()] = currPixel
-				buffer = append(buffer, count|0b11000000)
-				pixelsWritten += (uint32(count) + 1)
-				// fmt.Printf("Writing a QOI_OP_RUN Chunk %08b\n", buffer[len(buffer)-1])
-				continue
-			} else {
-				// QOI_OP_INDEX
-				idx += 4
-				s.previousType = qoi_op_index
-				s.previousPixel = currPixel
-				s.historyBuffer[currPixel.Hash()] = currPixel
-				buffer = append(buffer, currPixel.Hash())
-				pixelsWritten += 1
-				// fmt.Printf("Writing a QOI_OP_INDEX Chunk %08b\n", buffer[len(buffer)-1])
-				continue
-			}
-		}
-
 		if currPixel.Equals(s.previousPixel) {
 			var count uint8 = 0 // bias of 1
 			rIdx := idx + 4
@@ -110,6 +66,48 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 			// fmt.Printf("Writing a QOI_OP_RUN Chunk %08b\n", buffer[len(buffer)-1])
 			continue
 		} else {
+			if s.historyBuffer[currPixel.Hash()].Equals(currPixel) {
+				// check if previous chunk was also a QOI_OP_INDEX hashed to same index
+				if s.previousType == qoi_op_index && s.previousPixel.Hash() == currPixel.Hash() {
+					// spec disallows 2 consecutive QOI_OP_INDEX hashed to same index
+					var count uint8 = 0 // bias of 1
+					rIdx := idx + 4
+					for pixelsWritten < expectedPixelsCount && rIdx < len(rgba) && count < 61 {
+						// TODO handle images with no alpha channel?
+						// fmt.Printf("prev idx -> checking runlength rIdx: %d idx: %d count: %d\n", rIdx, idx, count)
+						runPixel := pixel{
+							R: rgba[rIdx],
+							G: rgba[rIdx+1],
+							B: rgba[rIdx+2],
+							A: rgba[rIdx+3],
+						}
+						if currPixel.Equals(runPixel) {
+							count += 1
+							rIdx += 4
+						} else {
+							break
+						}
+					}
+					idx = rIdx
+					s.previousType = qoi_op_run
+					s.previousPixel = currPixel
+					s.historyBuffer[currPixel.Hash()] = currPixel
+					buffer = append(buffer, count|0b11000000)
+					pixelsWritten += (uint32(count) + 1)
+					// fmt.Printf("Writing a QOI_OP_RUN Chunk %08b\n", buffer[len(buffer)-1])
+					continue
+				} else {
+					// QOI_OP_INDEX
+					idx += 4
+					s.previousType = qoi_op_index
+					s.previousPixel = currPixel
+					s.historyBuffer[currPixel.Hash()] = currPixel
+					buffer = append(buffer, currPixel.Hash())
+					pixelsWritten += 1
+					// fmt.Printf("Writing a QOI_OP_INDEX Chunk %08b\n", buffer[len(buffer)-1])
+					continue
+				}
+			}
 			// check if buffer can be stored as diff using either QOI_OP_DIFF or QOI_OP_LUMA
 			if channels == 3 || currPixel.A == s.previousPixel.A {
 				// check if QOI_OP_DIFF
@@ -182,10 +180,12 @@ func Encode(rgba []byte, height uint32, width uint32, channels uint8, colorspace
 		}
 	}
 
+	// end marker
+	buffer = append(buffer, 0x00, 0x00, 0x00 , 0x00,0x00, 0x00 , 0x00, 0x01)
 	return buffer, nil
 }
 
-func imageToNRGBA(src image.Image)  *image.NRGBA {
+func imageToNRGBA(src image.Image) *image.NRGBA {
 	dst := image.NewNRGBA(src.Bounds())
 	draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Src)
 	return dst
@@ -193,7 +193,7 @@ func imageToNRGBA(src image.Image)  *image.NRGBA {
 
 func nrgbaImageToQOI(m *image.NRGBA) ([]byte, error) {
 	return Encode(m.Pix, uint32(m.Bounds().Max.Y), uint32(m.Bounds().Max.X), 4, 0)
-} 
+}
 
 func ImageEncode(w io.Writer, m image.Image) error {
 	switch src := m.(type) {

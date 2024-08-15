@@ -10,7 +10,6 @@ import (
 	"os"
 )
 
-
 type header struct {
 	Magic      string
 	Width      uint32
@@ -101,7 +100,7 @@ PixelLoop:
 	for idx < len(buffer) && pixelsRead < expectedPixelsCount {
 		tag := buffer[idx]
 		switch {
-		case tag == 255: 
+		case tag == 255:
 			// fmt.Printf("idx %d has 'qoi_op_rgba' chunk\n", idx)
 			pixel := pixel{R: buffer[idx+1], G: buffer[idx+2], B: buffer[idx+3], A: buffer[idx+4]}
 			s.historyBuffer[pixel.Hash()] = pixel
@@ -204,7 +203,6 @@ PixelLoop:
 	return &s, nil
 }
 
-
 func ImageDecode(r io.Reader) (image.Image, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -225,6 +223,25 @@ func ImageDecode(r io.Reader) (image.Image, error) {
 		})
 	}
 	return img, nil
+}
+
+func DecodeConfig(r io.Reader) (image.Config, error) {
+	buffer := make([]byte, 14)
+	n, err := r.Read(buffer)
+	if err != nil || n != 14 {
+		return image.Config{}, err
+	}
+
+	header, err := readHeader(buffer)
+	if err != nil {
+		return image.Config{}, err
+	}
+	
+	return image.Config{
+		Height: int(header.Height),
+		Width:  int(header.Width),
+		ColorModel: color.RGBAModel ,
+	}, nil
 }
 
 func testDecode() *State {
